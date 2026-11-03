@@ -545,7 +545,7 @@ def evaluate(
         print_confusion_matrix(
             metrics["confusion_matrix"],
             class_names=class_names,
-            title=f"Confusion Matrix — {variant}",
+            title=f"Confusion Matrix - {variant}",
         )
 
         if run_gradcam:
