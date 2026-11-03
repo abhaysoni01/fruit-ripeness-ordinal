@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fruit Ripeness Ordinal AI — Mango & Banana</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+  <!-- Navigation Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <span class="brand-icon">🍅</span>
+        <div>
+          <h1>Fruit Ripeness Ordinal AI</h1>
+          <p class="tagline">Fruit Ripeness Classification with Ordinal Regression</p>
+        </div>
+      </div>
+      <div class="system-status">
+        <span class="status-indicator online"></span>
+        <span id="backend-status">Backend Online</span>
+        <span class="badge badge-subtle" id="device-badge">CPU</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Navigation Tabs -->
+  <nav class="nav-tabs-wrapper">
+    <div class="nav-tabs">
+      <button class="tab-btn active" data-tab="tab-analyzer">🍎 Live Ripeness Analyzer</button>
+      <button class="tab-btn" data-tab="tab-explainer">🔬 How Ordinal Regression Works</button>
+      <button class="tab-btn" data-tab="tab-metrics">📊 Dataset & Evaluation Metrics</button>
+    </div>
+  </nav>
+
+  <main class="main-container">
+
+    <!-- TAB 1: Live Analyzer -->
+    <section id="tab-analyzer" class="tab-content active">
+      <!-- Top Overview Card -->
+      <div class="card intro-card">
+        <div class="intro-grid">
+          <div>
+            <h2>Real-World Ripeness Grading with Visual Explanations</h2>
+            <p>
+              <strong>CORAL Ordinal Classification</strong> models ripeness as an ordered progression.
+              This public dataset covers mangoes and bananas with three labels:
+              <span class="stage-pill pill-0">Unripe</span> &rarr;
+              <span class="stage-pill pill-2">Ripe</span> &rarr;
+              <span class="stage-pill pill-3">Overripe</span>.
+            </p>
+          </div>
+          <div class="intro-stats">
+            <div class="stat-box">
+              <span class="stat-number">3</span>
+              <span class="stat-label">Ordinal Stages</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-number">ResNet-18</span>
+              <span class="stat-label">Backbone</span>
+            </div>
+            <div class="stat-box">
+              <span class="stat-number">Grad-CAM</span>
+              <span class="stat-label">Explainability</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Area: Upload & Sample Gallery -->
+      <div class="analyzer-grid">
+        <div class="card upload-card">
+          <h3>1. Choose or Upload Fruit Image</h3>
+
+          <div class="drop-zone" id="drop-zone">
+            <input type="file" id="file-input" accept="image/*" class="file-input-hidden">
+            <div class="drop-zone-content">
+              <span class="upload-icon">📷</span>
+              <p><strong>Drag & Drop</strong> fruit image here</p>
+              <span class="subtext">or click to browse files</span>
+            </div>
+          </div>
+
+          <!-- Sample Gallery from active training dataset -->
+          <div class="sample-section">
+            <div class="sample-header">
+              <h4>Or choose a sample from the active dataset:</h4>
+              <button class="btn-refresh" id="btn-refresh-samples" title="Reload samples">↻</button>
+            </div>
+            <div class="sample-tabs" id="sample-tabs">
+              <button class="sample-filter active" data-stage="all">All</button>
+              <button class="sample-filter" data-stage="unripe">Unripe</button>
+              <button class="sample-filter" data-stage="ripe">Ripe</button>
+              <button class="sample-filter" data-stage="overripe">Overripe</button>
+            </div>
+            <div class="sample-gallery" id="sample-gallery">
+              <div class="loading-spinner">Loading dataset samples...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Live Analysis Results (Side-by-Side) -->
+        <div class="card results-card" id="results-card">
+          <div class="results-header">
+            <h3>2. Comparative Model Analysis & Attention Maps</h3>
+            <span class="badge" id="inference-time-badge">Ready</span>
+          </div>
+
+          <div id="results-placeholder" class="placeholder-state">
+            <span class="placeholder-icon">🔍</span>
+            <p>Upload a fruit image to view the trained ordinal ripeness prediction and Grad-CAM attention map.</p>
+          </div>
+
+          <div id="results-content" class="results-content hidden">
+            <!-- Image Previews -->
+            <div class="visual-row">
+              <div class="visual-col">
+                <h4>Original Input</h4>
+                <div class="img-frame">
+                  <img id="res-orig-img" src="" alt="Original Fruit">
+                </div>
+              </div>
+              <div class="visual-col hidden" id="baseline-visual-col">
+                <h4>Fruit Crop Used for Classification</h4>
+                <div class="img-frame">
+                  <img id="res-cropped-img" src="" alt="Cropped fruit used for classification">
+                </div>
+              </div>
+              <div class="visual-col">
+                <h4>Baseline Grad-CAM Map</h4>
+                <div class="img-frame">
+                  <img id="res-baseline-cam" src="" alt="Baseline Grad-CAM">
+                </div>
+                <span class="caption">Attends to top nominal class score</span>
+              </div>
+              <div class="visual-col">
+                <h4>CORAL Ordinal Grad-CAM Map</h4>
+                <div class="img-frame">
+                  <img id="res-ordinal-cam" src="" alt="CORAL Grad-CAM">
+                </div>
+                <span class="caption">Attends to cumulative rank progression</span>
+              </div>
+            </div>
+
+            <!-- Comparison Cards: Baseline vs CORAL -->
+            <div class="models-comparison-grid ordinal-only" id="models-comparison-grid">
+
+              <!-- Baseline Model Card -->
+              <div class="model-panel baseline-panel hidden" id="baseline-panel">
+                <div class="panel-header">
+                  <span class="panel-badge baseline">Baseline Model</span>
+                  <h4>Multi-Class Cross-Entropy</h4>
+                </div>
+
+                <div class="prediction-highlight">
+                  <span class="pred-label" id="res-baseline-label">Stage: Loading...</span>
+                  <span class="pred-conf" id="res-baseline-conf">0%</span>
+                </div>
+
+                <p class="panel-expl" id="res-baseline-expl"></p>
+
+                <h5>Softmax Class Probability Distribution:</h5>
+                <div class="chart-container">
+                  <canvas id="chart-baseline"></canvas>
+                </div>
+              </div>
+
+              <!-- CORAL Ordinal Model Card -->
+              <div class="model-panel ordinal-panel">
+                <div class="panel-header">
+                  <span class="panel-badge ordinal">CORAL Model</span>
+                  <h4>Rank-Consistent Ordinal Regression</h4>
+                </div>
+
+                <div class="prediction-highlight ordinal-highlight">
+                  <span class="pred-label" id="res-ordinal-label">Stage: Loading...</span>
+                  <span class="pred-rank" id="res-ordinal-rank">Rank: 0 / 3</span>
+                </div>
+
+                <!-- Ordinal Step Slider -->
+                <div class="ordinal-progress-bar" id="ordinal-progress-bar"></div>
+
+                <p class="panel-expl" id="res-ordinal-expl"></p>
+
+                <h5>Binary Threshold Decision Gates:</h5>
+                <div class="threshold-gates-list" id="threshold-gates">
+                  <!-- Injected via JS -->
+                </div>
+
+                <h5>Derived Probability Mass:</h5>
+                <div class="chart-container">
+                  <canvas id="chart-ordinal"></canvas>
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 2: How It Works -->
+    <section id="tab-explainer" class="tab-content">
+      <div class="card">
+        <h2>How Ordinal Regression Models Fruit Ripeness</h2>
+        <p class="section-desc">
+          CORAL respects class order and limits predictions to the stages defined by the training dataset.
+        </p>
+
+        <div class="explainer-cards-grid">
+          <div class="explainer-card problem">
+            <h3>❌ The Problem with Standard Cross-Entropy</h3>
+            <ul>
+              <li><strong>Ignores Natural Order:</strong> Standard softmax assumes all classes are equidistant in orthogonal space.</li>
+              <li><strong>Equal Penalty:</strong> Standard cross-entropy does not account for the distance between ripeness stages.</li>
+              <li><strong>High Mean Absolute Error (MAE):</strong> Causes wild off-by-2 and off-by-3 errors that ruin automated sorting supply chains.</li>
+            </ul>
+          </div>
+
+          <div class="explainer-card solution">
+            <h3>✅ The CORAL Solution (Cao et al., 2020)</h3>
+            <ul>
+              <li><strong>Rank-Consistent Architecture:</strong> Uses $K-1$ ordered binary tasks sharing a single weight vector $w$:
+                <code>logit_k = w^T x + b_k</code>.
+              </li>
+              <li><strong>Ordered Threshold Biases:</strong> Learnable thresholds enforce rank consistency across boundaries.</li>
+              <li><strong>Monotonic Rank Decoding:</strong> The final predicted grade is obtained by summing passed threshold gates:
+                <code>ŷ = ∑ 𝟙[σ(logit_k) &gt; 0.5]</code>.
+              </li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="formula-box">
+          <h4>The CORAL Loss Function</h4>
+          <p>The total loss is the mean binary cross-entropy across all rank thresholds, penalizing predictions proportionally to their distance from the true stage:</p>
+          <code>L_CORAL = - 1 / (N · (K-1)) ∑_i ∑_k [ y_ik · log σ(logit_ik) + (1 - y_ik) · log(1 - σ(logit_ik)) ]</code>
+          <p class="formula-note">Where <code>y_ik = 𝟙[y_i > k]</code> is 1 if the true ripeness rank exceeds threshold <em>k</em>, and 0 otherwise.</p>
+        </div>
+
+        <div class="gradcam-expl-box">
+          <h3>Visual Explanations via Grad-CAM</h3>
+          <p>
+            To verify that the model is learning authentic physiological ripeness cues (chlorophyll loss, carotenoid buildup, surface browning) rather than background or orientation artifacts,
+            <strong>Grad-CAM</strong> extracts gradient activations from the final convolutional block (<code>ResNet-18 layer4</code>):
+          </p>
+          <div class="gradcam-steps-grid">
+            <div class="step-card">
+              <span class="step-num">1</span>
+              <h4>Forward Pass</h4>
+              <p>Image passes through ResNet-18 to extract feature maps $A^k$ at layer4.</p>
+            </div>
+            <div class="step-card">
+              <span class="step-num">2</span>
+              <h4>Gradient Backprop</h4>
+              <p>For CORAL, gradients are computed with respect to the <em>cumulative continuous rank</em> $∑ σ(logit)$.</p>
+            </div>
+            <div class="step-card">
+              <span class="step-num">3</span>
+              <h4>Weighted Heatmap</h4>
+              <p>Gradients pool feature activations into a spatial heatmap blended over the fruit.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- TAB 3: Dataset & Evaluation Metrics -->
+    <section id="tab-metrics" class="tab-content">
+      <div class="card">
+        <h2>Public Mango & Banana Dataset Evaluation</h2>
+        <p class="section-desc">
+          Results are loaded from this project’s held-out test evaluation. The public dataset has Unripe, Ripe, and Overripe labels.
+        </p>
+
+        <!-- Benchmark Comparison Table -->
+        <div class="table-responsive">
+          <table class="metrics-table" id="metrics-table">
+            <thead>
+              <tr>
+                <th>Evaluation Metric</th>
+                <th>Baseline</th>
+                <th>CORAL Ordinal</th>
+              </tr>
+            </thead>
+            <tbody id="metrics-table-body">
+              <tr>
+                <td colspan="3">Run evaluation to populate held-out test metrics.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Active dataset breakdown -->
+        <div class="dataset-meta-grid">
+          <div class="dataset-card">
+            <h3>Dataset Specifications</h3>
+            <ul class="meta-list">
+              <li><strong>Source:</strong> Public Kaggle Fruits-Ripeness Dataset (CC0)</li>
+              <li><strong>Fruits:</strong> Banana and mango</li>
+              <li><strong>Resolution:</strong> 300 &times; 300 pixels, RGB</li>
+              <li><strong>Backbone:</strong> Pretrained ResNet-18 (ImageNet weights)</li>
+              <li><strong>Ripeness labels:</strong>
+                <ul>
+                  <li>Stage 0: <code>Unripe</code></li>
+                  <li>Stage 1: <code>Ripe</code></li>
+                  <li>Stage 2: <code>Overripe</code></li>
+                </ul>
+              </li>
+              <li><strong>Testing:</strong> Uses the source-provided test split</li>
+            </ul>
+          </div>
+          <div class="dataset-card">
+            <h3>Why MAE is the Decisive Metric</h3>
+            <p>
+              The ordinal model treats adjacent ripeness stages as closer than stages separated by larger ripeness differences.
+            </p>
+            <p>
+              <strong>MAE (Mean Absolute Error)</strong> reports the average distance between predicted and true stage.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <footer class="app-footer">
+    <p>Fruit Ripeness Ordinal AI &copy; 2026 &bull; Powered by PyTorch, ResNet-18, CORAL, Grad-CAM & Flask</p>
+  </footer>
+
+  <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
